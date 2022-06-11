@@ -1,0 +1,110 @@
+CIND820_DATA<- read.csv("C:/Users/Hasib/Downloads/features.csv", header=TRUE) #sep=",")
+
+CIND820_clean_data<- read.csv("C:/Users/Hasib/Downloads/clean_data.csv", header=TRUE) #sep=",")
+
+
+```{r}
+set.seed(1)
+CIND820_rn_train <- sample(nrow(CIND820_clean_data), floor(nrow(CIND820_clean_data)*0.7))
+CIND820_train <- CIND820_clean_data[CIND820_rn_train,]
+CIND820_test <- CIND820_clean_data[-CIND820_rn_train,]
+```
+
+```{r}
+str(CIND820_DATA)
+```
+```{r}
+str(CIND820_clean_data)
+```
+
+
+```{r}
+model_CIND820_clean_data <- lm(Weekly_Sales~Temperature + Fuel_Price + CPI, data = CIND820_clean_data)
+model_CIND820_clean_data
+```
+
+```{r}
+summary(CIND820_DATA)
+```
+
+```{r}
+summary(CIND820_clean_data)
+```
+
+
+head(CIND820_clean_data)
+plot(CIND820_clean_data$Temperature, CIND820_clean_data$Fuel_Price)
+
+max(CIND820_DATA$Temperature)
+min(CIND820_DATA$Temperature)
+-7.29
+max(CIND820_DATA$Fuel_Price)
+4.468
+min(CIND820_DATA$Fuel_Price)
+2.472
+
+boxplot(CIND820_clean_data$Temperature,
+        main = "Boxplot of Temperature",
+        names = c("Temperature"),
+        col = c("Red"),
+        border = "Black", horizontal = TRUE)
+        
+boxplot(CIND820_clean_data$Fuel_Price,
+        main = "Boxplot of Fuel price",
+        names = c("Fuel_Price"),
+        col = c("Green"),
+        border = "Black", horizontal = TRUE)
+        
+boxplot(CIND820_clean_data$CPI,
+        main = "Boxplot of CPI",
+        names = c("CPI"),
+        col = c("Orange"),
+        border = "Black", horizontal = TRUE)
+        
+boxplot(CIND820_clean_data$Weekly_Sales,
+        main = "Boxplot of Weekly Sales",
+        names = c("Weekly Sales"),
+        col = c("yellow"),
+        border = "Black", horizontal = TRUE)
+
+# Max and Minimum for the CPI (Consumer Price Index) & Unemployment rate
+```{r}
+min(CIND820_DATA$CPI, na.rm=T)
+max(CIND820_DATA$CPI, na.rm = T)
+
+min(CIND820_DATA$Unemployment, na.rm = T)
+max(CIND820_DATA$Unemployment, na.rm = T)
+```
+
+```{r}
+min(CIND820_clean_data$CPI, na.rm=T)
+max(CIND820_clean_data$CPI, na.rm = T)
+
+min(CIND820_clean_data$Unemployment, na.rm = T)
+max(CIND820_clean_data$Unemployment, na.rm = T)
+```
+
+# The number of holidays in that specific week
+```{r}
+table(CIND820_clean_data$IsHoliday)
+```
+
+```{r}
+CIND820_clean_data_correlation <- cor(CIND820_clean_data[,4:7])
+CIND820_clean_data_correlation
+
+library(corrplot)
+corrplot(CIND820_clean_data_correlation)
+```
+
+x<- subset(CIND820_clean_data, CIND820_clean_data$Weekly_Sales)
+
+pietable <- table(CIND820_clean_data$year)
+
+percentage <- round(pietable / sum(pietable)*100)
+years <- c("2010", "2011", "2012")
+labels <- paste(years, percentage, "%")
+
+pie(pietable, labels = labels, main = "Years for weekly sales")
+
+
