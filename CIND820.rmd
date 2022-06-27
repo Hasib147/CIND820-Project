@@ -1,36 +1,158 @@
-CIND820_DATA<- read.csv("C:/Users/Hasib/Downloads/features.csv", header=TRUE) #sep=",")
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+# Reading the dataset
+```{r}
+CIND820_clean_data<- read.csv("C:/Users/Hasib/Downloads/clean_data.csv", stringsAsFactors = F, na.strings = c('','NA','?'))
 
-CIND820_clean_data<- read.csv("C:/Users/Hasib/Downloads/clean_data.csv", header=TRUE) #sep=",")
+CIND820_clean_data2=CIND820_clean_data
+```
 
+
+# Normalize the numerical variables in the dataset.
+```{r}
+normalize <- function(numeric_data)
+  
+{
+  return ((numeric_data - min(numeric_data)) / (max(numeric_data) - min(numeric_data)))
+}
+numeric_data <- CIND820_clean_data[,c("Weekly_Sales", "Temperature", "Fuel_Price", "MarkDown1", "MarkDown2", "MarkDown3", "MarkDown4", "MarkDown5", "CPI", "Unemployment", "Size")]
+
+numeric_data <- normalize(numeric_data)
+View(numeric_data)
+CIND820_clean_data2[,c("Weekly_Sales", "Temperature", "Fuel_Price", "MarkDown1", "MarkDown2", "MarkDown3", "MarkDown4", "MarkDown5", "CPI", "Unemployment", "Size") ] = numeric_data
+View(CIND820_clean_data2)
+#CIND820_clean_data <- as.data.frame(sapply(numeric_data[,4], function(CIND820_clean_data) normalize(CIND820_clean_data)))
+#CIND820_clean_data_normalization$Weekly_Sales <- as.factor(CIND820_clean_data$Weekly_Sales)
+```
+
+# Dividing the dataset into testing and training set
+```{r}
+set.seed(1)
+CIND820_rn_train <- sample(nrow(CIND820_clean_data2), floor(nrow(CIND820_clean_data2)*0.7))
+# We used the 70% training split and 30% test split
+CIND820_train <- CIND820_clean_data2[CIND820_rn_train,]
+CIND820_test <- CIND820_clean_data2[-CIND820_rn_train,]
+
+# Weekly sales column testing & training
+CIND820_train_Weekly_Sales = CIND820_train[,"Weekly_Sales"] 
+CIND820_test_Weekly_Sales = CIND820_test[,"Weekly_Sales"]
+head(CIND820_train_Weekly_Sales)
+head(CIND820_test_Weekly_Sales)
+
+```
+
+# stepwise regression (subset of the model) - original dataset (CIND820_clean_data)
+```{r}
+library(MASS)
+# forward selection
+full_model_CIND820_clean_data <- lm(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_clean_data)
+null_model_CIND820_clean_data <- lm(Weekly_Sales ~ 1, data = CIND820_clean_data)
+step_full_model <- stepAIC(null_model_CIND820_clean_data, scope=list(lower=null_model_CIND820_clean_data, upper=full_model_CIND820_clean_data),direction= "forward", trace=TRUE)
+summary(step_full_model)
+```
+
+# stepwise regression (subset of the model) - normalized dataset (CIND820_clean_data2)
+```{r}
+library(MASS)
+# forward selection
+full_model_CIND820_clean_data2 <- lm(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_clean_data2)
+null_model_CIND820_clean_data2 <- lm(Weekly_Sales ~ 1, data = CIND820_clean_data2)
+step_full_model2 <- stepAIC(null_model_CIND820_clean_data2, scope=list(lower=null_model_CIND820_clean_data2, upper=full_model_CIND820_clean_data2),direction= "forward", trace=TRUE)
+summary(step_full_model2)
+```
+
+# stepwise regression (subset of the model) - original dataset (CIND820_clean_data)
+```{r}
+# Backward elimination:
+library(MASS)
+full_backward_elimination <- lm(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_clean_data)
+step_full_model <- stepAIC(full_backward_elimination, direction= "backward", trace = TRUE)
+summary(step_full_model)
+```
+
+# stepwise regression (subset of the model) - normalized dataset (CIND820_clean_data2)
+```{r}
+# Backward elimination:
+library(MASS)
+full_backward_elimination2 <- lm(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_clean_data2)
+step_full_model2 <- stepAIC(full_backward_elimination2, direction= "backward", trace = TRUE)
+summary(step_full_model2)
+```
 
 ```{r}
 set.seed(1)
-CIND820_rn_train <- sample(nrow(CIND820_clean_data), floor(nrow(CIND820_clean_data)*0.7))
-CIND820_train <- CIND820_clean_data[CIND820_rn_train,]
-CIND820_test <- CIND820_clean_data[-CIND820_rn_train,]
+CIND820_rn_train2 <- sample(nrow(CIND820_clean_data), floor(nrow(CIND820_clean_data)*0.7))
+# We used the 70% training split and 30% test split
+CIND820_train2 <- CIND820_clean_data[CIND820_rn_train2,]
+CIND820_test2 <- CIND820_clean_data[-CIND820_rn_train2,]
+
+# Weekly sales column testing & training
+CIND820_train_Weekly_Sales2 = CIND820_train2[,"Weekly_Sales"] 
+CIND820_test_Weekly_Sales2 = CIND820_test2[,"Weekly_Sales"]
+head(CIND820_train_Weekly_Sales2)
+head(CIND820_test_Weekly_Sales2)
 ```
 
+# k-fold cross validation - original dataset (CIND820_clean_data)
 ```{r}
-str(CIND820_DATA)
+library(caret)
+
+#specifing the cross-validation method, tells system how the train happens in the model
+ctrl <- trainControl(method = "cv", number = 10)
+
+#fit a regression model and use k-fold CV to evaluate performance
+model_original <- train(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_train2, method = "lm", trControl = ctrl)
+
+#view summary of k-fold CV               
+print(model_original)
+# ask uzair to use the train function (to generate the linear model)
+```
+
+# k-fold cross validation - normalized dataset (CIND820_clean_data2)
+```{r}
+library(caret)
+
+#specifing the cross-validation method, tells system how the train happens in the model, 9 parts for training and 1 part for testing
+ctrl2 <- trainControl(method = "cv", number = 10)
+
+#fitting a regression model and use k-fold CV to evaluate performance
+model2 <- train(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_train, method = "lm", trControl = ctrl2)
+
+#view summary of k-fold CV               
+print(model2)
+```
+
+# Model predictions for each fold (k=10)
+```{r}
+model$resample
+# The code above is used to view the predictions for each fold of the model
+```
+# Final Model fit
+```{r}
+model$finalModel
 ```
 ```{r}
-str(CIND820_clean_data)
+summary(CIND820_clean_data2)
+str(CIND820_clean_data2)
 ```
 
 
+# Max and Minimum for the CPI (Consumer Price Index) & Unemployment rate, as well as boxplots for the dataset and other data.
 ```{r}
-model_CIND820_clean_data <- lm(Weekly_Sales~Temperature + Fuel_Price + CPI, data = CIND820_clean_data)
-model_CIND820_clean_data
-```
+min(CIND820_DATA$CPI, na.rm=T)
+max(CIND820_DATA$CPI, na.rm = T)
 
-```{r}
-summary(CIND820_DATA)
-```
+min(CIND820_DATA$Unemployment, na.rm = T)
+max(CIND820_DATA$Unemployment, na.rm = T)
 
-```{r}
-summary(CIND820_clean_data)
-```
+min(CIND820_clean_data$CPI, na.rm=T)
+max(CIND820_clean_data$CPI, na.rm = T)
 
+min(CIND820_clean_data$Unemployment, na.rm = T)
+max(CIND820_clean_data$Unemployment, na.rm = T)
 
 head(CIND820_clean_data)
 plot(CIND820_clean_data$Temperature, CIND820_clean_data$Fuel_Price)
@@ -67,36 +189,23 @@ boxplot(CIND820_clean_data$Weekly_Sales,
         col = c("yellow"),
         border = "Black", horizontal = TRUE)
 
-# Max and Minimum for the CPI (Consumer Price Index) & Unemployment rate
-```{r}
-min(CIND820_DATA$CPI, na.rm=T)
-max(CIND820_DATA$CPI, na.rm = T)
-
-min(CIND820_DATA$Unemployment, na.rm = T)
-max(CIND820_DATA$Unemployment, na.rm = T)
-```
-
-```{r}
-min(CIND820_clean_data$CPI, na.rm=T)
-max(CIND820_clean_data$CPI, na.rm = T)
-
-min(CIND820_clean_data$Unemployment, na.rm = T)
-max(CIND820_clean_data$Unemployment, na.rm = T)
-```
-
-# The number of holidays in that specific week
-```{r}
+# Number of holidays in that specific week
 table(CIND820_clean_data$IsHoliday)
 ```
 
+
+# Correlation of the dataset
 ```{r}
-CIND820_clean_data_correlation <- cor(CIND820_clean_data[,4:7])
+CIND820_clean_data_correlation <- cor(CIND820_clean_data[,c("Weekly_Sales", "Temperature", "Fuel_Price", "CPI")])
 CIND820_clean_data_correlation
 
 library(corrplot)
 corrplot(CIND820_clean_data_correlation)
 ```
 
+
+# Piechart of the dataset for the 3 years of sales
+```{r}
 x<- subset(CIND820_clean_data, CIND820_clean_data$Weekly_Sales)
 
 pietable <- table(CIND820_clean_data$year)
@@ -106,5 +215,4 @@ years <- c("2010", "2011", "2012")
 labels <- paste(years, percentage, "%")
 
 pie(pietable, labels = labels, main = "Years for weekly sales")
-
-
+```
