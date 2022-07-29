@@ -1,7 +1,7 @@
 ---
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 # Reading the dataset
 ```{r}
@@ -28,20 +28,21 @@ View(CIND820_clean_data2)
 #CIND820_clean_data_normalization$Weekly_Sales <- as.factor(CIND820_clean_data$Weekly_Sales)
 ```
 
-# Dividing the dataset into testing and training set
+
+
+# Dividing the dataset into testing and training set (70% training - 294,148 observations)
 ```{r}
 set.seed(1)
-CIND820_rn_train <- sample(nrow(CIND820_clean_data2), floor(nrow(CIND820_clean_data2)*0.7))
+CIND820_rn_train2 <- sample(nrow(CIND820_clean_data), floor(nrow(CIND820_clean_data)*0.7))
 # We used the 70% training split and 30% test split
-CIND820_train <- CIND820_clean_data2[CIND820_rn_train,]
-CIND820_test <- CIND820_clean_data2[-CIND820_rn_train,]
+CIND820_train2 <- CIND820_clean_data[CIND820_rn_train2,]
+CIND820_test2 <- CIND820_clean_data[-CIND820_rn_train2,]
 
 # Weekly sales column testing & training
-CIND820_train_Weekly_Sales = CIND820_train[,"Weekly_Sales"] 
-CIND820_test_Weekly_Sales = CIND820_test[,"Weekly_Sales"]
-head(CIND820_train_Weekly_Sales)
-head(CIND820_test_Weekly_Sales)
-
+CIND820_train_Weekly_Sales2 = CIND820_train2[,"Weekly_Sales"] 
+CIND820_test_Weekly_Sales2 = CIND820_test2[,"Weekly_Sales"]
+head(CIND820_train_Weekly_Sales2)
+head(CIND820_test_Weekly_Sales2)
 ```
 
 # stepwise regression (subset of the model) - original dataset (CIND820_clean_data)
@@ -82,33 +83,18 @@ step_full_model2 <- stepAIC(full_backward_elimination2, direction= "backward", t
 summary(step_full_model2)
 ```
 
-```{r}
-set.seed(1)
-CIND820_rn_train2 <- sample(nrow(CIND820_clean_data), floor(nrow(CIND820_clean_data)*0.7))
-# We used the 70% training split and 30% test split
-CIND820_train2 <- CIND820_clean_data[CIND820_rn_train2,]
-CIND820_test2 <- CIND820_clean_data[-CIND820_rn_train2,]
-
-# Weekly sales column testing & training
-CIND820_train_Weekly_Sales2 = CIND820_train2[,"Weekly_Sales"] 
-CIND820_test_Weekly_Sales2 = CIND820_test2[,"Weekly_Sales"]
-head(CIND820_train_Weekly_Sales2)
-head(CIND820_test_Weekly_Sales2)
-```
-
-# k-fold cross validation - original dataset (CIND820_clean_data)
+# k-fold cross validation - original dataset (70% training data of CIND820_clean_data)
 ```{r}
 library(caret)
 
-#specifing the cross-validation method, tells system how the train happens in the model
+#specifying the cross-validation method, tells system how the train happens in the model
 ctrl <- trainControl(method = "cv", number = 10)
 
 #fit a regression model and use k-fold CV to evaluate performance
 model_original <- train(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5, data = CIND820_train2, method = "lm", trControl = ctrl)
 
-#view summary of k-fold CV               
+# view summary of k-fold CV               
 print(model_original)
-# ask uzair to use the train function (to generate the linear model)
 ```
 
 # k-fold cross validation - normalized dataset (CIND820_clean_data2)
@@ -134,11 +120,127 @@ model$resample
 ```{r}
 model$finalModel
 ```
+
+# Random forest using cross validation
 ```{r}
-summary(CIND820_clean_data2)
-str(CIND820_clean_data2)
+set.seed(1) 
+library(randomForest)
+
+#train = CIND820_clean_data2[CIND820_clean_data2$Weekly_Sales == 'Train',]
+#test = CIND820_clean_data2[CIND820_clean_data2$Weekly_Sales == 'Test',]
+
+data_ndx <- 1:nrow(CIND820_clean_data2)
+train_ndx <- sample(data_ndx,7000,replace = F) # no 2 numbers are the same
+test_ndx <- sample(data_ndx[-train_ndx],3000,replace = F) # no 2 numbers are the same (different from training numbers)
+train_set<-CIND820_clean_data2[train_ndx, ]
+test_set<-CIND820_clean_data2[-test_ndx, ]
+library(randomForest)
+rf = randomForest(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5 + week + month + year, data = train_set)
+
+print(rf)
+
 ```
 
+
+```{r}
+# 2 models to predict weekly sales for the best and worst Walmart stores in the region using random forest regression
+
+store_sales <- aggregate(train_set$Weekly_Sales, list(train_set$Store),sum)
+names(store_sales)<-c("store","Total_Sales")
+str(store_sales) # gives us 45 different stores of the total sales, combining all the departments
+
+min(store_sales$Total_Sales) # 0.8388226
+max(store_sales$Total_Sales) # 7.677282
+
+which(store_sales$Total_Sales==min(store_sales$Total_Sales))
+#Store 44 has the lowest total weekly sales out of the 45 stores at 0.8388226
+which(store_sales$Total_Sales==max(store_sales$Total_Sales))
+#Store 20 has the highest total weekly sales out of the 45 stores at 7.677282
+
+nrow(CIND820_clean_data2[CIND820_clean_data2==44,]) # 18463 total rows
+nrow(CIND820_clean_data2[CIND820_clean_data2==20,]) # 24965 total rows
+
+# Converting store 44 categorical variables into factors
+store44<-CIND820_clean_data2[CIND820_clean_data2==44,]
+store44$week<-as.factor(store44$week)
+store44$month<-as.factor(store44$month)
+store44$year<-as.factor(store44$year)
+str(store44)
+
+# Converting store 20 categorical variables into factors
+store20<-CIND820_clean_data2[CIND820_clean_data2==20,]
+store20$week<-as.factor(store20$week)
+store20$month<-as.factor(store20$month)
+store20$year<-as.factor(store20$year)
+str(store20)
+
+# Remove NA from the 2 stores
+missing_values <- rowSums(is.na(store20))
+store20 <- store20[!missing_values > 1,]
+nrow(store20)
+
+missing_values2 <- rowSums(is.na(store44))
+store44 <- store44[!missing_values2 > 1,]
+nrow(store44)
+```
+# Random forest regression models for store 44 (lowest weekly sales) & 20 (highest weekly sales)
+```{r}
+library(randomForest)
+
+data_store44 <- 1:nrow(store44)
+train_ndx_store44 <- sample(1:nrow(store44), floor(nrow(store44)*0.7))
+store44_train_set<-store44[train_ndx_store44,]
+store44_test_set<-store44[-train_ndx_store44,]
+
+Sys.time()
+random_forest_store44 = randomForest(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5 + week + month + year, data = store44_train_set)
+print(random_forest_store44)
+Sys.time()  # took about 1 minute for the model to run 
+
+data_store20 <- 1:nrow(store20)
+train_ndx_store20 <- sample(1:nrow(store20), floor(nrow(store20)*0.7))
+store20_train_set<-store20[train_ndx_store20,]
+store20_test_set<-store20[-train_ndx_store20,]
+
+Sys.time()
+random_forest_store20 = randomForest(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5 + week + month+ year, data = store20_train_set)
+print(random_forest_store20)
+Sys.time() # took about 2 minutes for the model to run 
+
+```
+# Root Mean Square error for 10 different samples for training and testing sets
+```{r}
+fit_model = lm(Weekly_Sales ~ Temperature + Fuel_Price + CPI + Unemployment + Size + MarkDown1 + MarkDown2 + MarkDown3 + MarkDown4 + MarkDown5 + week + month + year, data = CIND820_clean_data2)
+# train RMSE for 10 different samples
+data_ndx <- 1:nrow(CIND820_clean_data2)
+train_ndx <- sample(data_ndx,6000,replace = F) # values change from 1000 to 10000
+train_set<-CIND820_clean_data2[train_ndx, ]
+
+sqrt(mean((train_set$Weekly_Sales - predict(fit_model, train_set) ^ 2)))
+
+# test RMSE for 10 different samples
+data_ndx <- 1:nrow(CIND820_clean_data2)
+test_ndx <- sample(data_ndx[-train_ndx],9000,replace = F) # values change from 9000 to 0
+test_set<-CIND820_clean_data2[-test_ndx, ]
+
+sqrt(mean((test_set$Weekly_Sales - predict(fit_model, test_set) ^ 2)))
+
+```
+# Getting the predicted values for store 20 and 44
+```{r}
+library(MLmetrics)
+# Predicted values for store 20
+predictions_train_set_store20 = predict(random_forest_store20, data = store20_train_set)
+MAPE(store20_train_set$Weekly_Sales, predictions_train_set_store20)
+predictions_test_set_store20 = predict(random_forest_store20, data = store20_test_set)
+MAPE(store20_test_set$Weekly_Sales, predictions_test_set_store20[1:nrow(store20_test_set)]) 
+
+# Predicted values for store 44
+predictions_train_set_store44 = predict(random_forest_store44, data = store44_train_set)
+MAPE(store44_train_set$Weekly_Sales, predictions_train_set_store44)
+predictions_test_set_store44 = predict(random_forest_store44, data = store44_test_set)
+MAPE(store44_test_set$Weekly_Sales, predictions_test_set_store44[1:nrow(store44_test_set)]) 
+```
 
 # Max and Minimum for the CPI (Consumer Price Index) & Unemployment rate, as well as boxplots for the dataset and other data.
 ```{r}
@@ -188,9 +290,50 @@ boxplot(CIND820_clean_data$Weekly_Sales,
         names = c("Weekly Sales"),
         col = c("yellow"),
         border = "Black", horizontal = TRUE)
+```
 
-# Number of holidays in that specific week
-table(CIND820_clean_data$IsHoliday)
+# Barplots for the holidays and weekly sales
+```{r}
+# Number of holidays in the whole dataset
+table(CIND820_clean_data$IsHoliday) # There are 29,560 total holidays in the dataset
+
+# Converting IsHoliday, Superbowl, laborday categorical variables into factors
+CIND820_clean_data<-CIND820_clean_data[CIND820_clean_data=='IsHoliday',]
+CIND820_clean_data$IsHoliday<-as.factor(CIND820_clean_data$IsHoliday)
+
+CIND820_clean_data_holiday <- CIND820_clean_data[,c(4:5)]
+head(CIND820_clean_data_holiday)
+
+library(ggplot2)
+#  barplot for is holiday
+Is_Holiday<-ggplot(data=CIND820_clean_data_holiday, aes(x=IsHoliday, y=Weekly_Sales)) 
+Is_Holiday
+
+CIND820_clean_data_Super_Bowl <- CIND820_clean_data[,c(4:5)]
+head(CIND820_clean_Super_Bowl)
+
+library(ggplot2)
+#  barplot for superbowl
+Super_Bowl<-ggplot(aes(x=Super_Bowl, y=Weekly_Sales), data=CIND820_clean_data2) 
+Super_Bowl
+
+library(ggplot2)
+#  barplot for christmas
+Christmas<-ggplot(data=CIND820_clean_data2, aes(x=Christmas, y=Weekly_Sales)) 
+Christmas
+
+library(ggplot2)
+#  barplot for thanksgiving
+Thanksgiving<-ggplot(data=CIND820_clean_data2, aes(x=Thanksgiving, y=Weekly_Sales)) 
+Thanksgiving
+
+library(ggplot2)
+#  barplot for labor day
+Labor_Day<-ggplot(data=CIND820_clean_data2, aes(x=Labor_Day, y=Weekly_Sales)) 
+Labor_Day
+
+
+
 ```
 
 
